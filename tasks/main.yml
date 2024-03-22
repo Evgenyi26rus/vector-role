@@ -1,0 +1,41 @@
+---
+- block:
+  - name: Create vector directory
+    ansible.builtin.file:
+      path: "{{ vector_workdir }}"
+      state: directory
+  - name: Create vector config directory
+    ansible.builtin.file:
+        path: "/etc/vector"
+        state: directory
+        mode: "0777"
+  - name: Get Vector distrib
+    ansible.builtin.get_url:
+      url: "https://packages.timber.io/vector/0.30.0/vector-0.30.0-x86_64-unknown-linux-gnu.tar.gz"
+      dest: "{{ vector_workdir }}/vector-0.30.0-x86_64-unknown-linux-gnu.tar.gz"
+  - name: Unzip Vector archive
+    ansible.builtin.unarchive:
+      remote_src: true
+      src: "{{ vector_workdir }}/vector-0.30.0-x86_64-unknown-linux-gnu.tar.gz"
+      dest: "{{ vector_workdir }}"
+  - name: Install Vector binary
+    become: true
+    ansible.builtin.copy:
+      remote_src: true
+      src: "{{ vector_workdir }}/vector-x86_64-unknown-linux-gnu/bin/vector"
+      dest: "/usr/bin/"
+      mode: "0777"
+      owner: root
+      group: root
+  - name: Check Vector installation
+    ansible.builtin.command: "vector --version"
+    register: var_vector
+    failed_when: var_vector.rc != 0
+    changed_when: var_vector.rc == 0
+  - name: Configure vector
+    ansible.builtin.template:
+      src: "./template/vector.yml.j2"
+      dest: "/etc/vector/vector.yml.j2"
+      mode: 0777
+  - name: Flush handlers
+    meta: flush_handlers
